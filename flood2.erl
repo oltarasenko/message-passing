@@ -22,9 +22,10 @@ pong_loop() ->
 	end.
 
 start(PongNode, Msg, Num) ->
-	true = rpc:call(PongNode, qr, start_link, []),
+	Res = rpc:call(PongNode, qr, start_link, []),
+	io:format("QR, started: ~p~n", [Res]),
 	true = rpc:call(PongNode, flood2, start_pong, []),
-	qr:start_link(),
+	{ok, _} = qr:start_link(),
 	io:format("Started reciever~n"),
 	start_responses_receiver(Num),
 	io:format("Sending~n"),
