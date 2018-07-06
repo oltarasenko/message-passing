@@ -22,25 +22,29 @@ pong_loop() ->
 	end.
 
 
-% start ping
-start_ping(PongNode, Num) ->
-	register(flood_ping, spawn(fun() -> ping_loop(Num, now(), Num) end)),
-	send(PongNode, Num).
+start(PongNode, Msg, Num) ->
+	true = rpc:call(PongNode, flood1, start_pong, []),
+	io:format("Started reciever~n"),
+	start_responses_receiver(Num),
+	io:format("Sending~n"),
+	send(PongNode, Msg, Num).
 
-send(_PongNode, 0) ->
+% start ping
+start_responses_receiver(Num) ->
+	register(flood_ping, spawn(fun() -> ping_loop(Num, erlang:timestamp(), Num) end)).
+
+send(_PongNode, _Msg, 0) ->
 	ok;
-send(PongNode, Num) ->
+send(PongNode, Msg, Num) ->
 	% send a spawned ping
-	Message = ping_request,
-	% Message = "a message of a string content of 128 bytes long--------------------------------------------------------------------------------",
-	spawn(fun() -> {flood_pong, PongNode} ! {{flood_ping, node()}, Message} end),
-	send(PongNode, Num - 1).
+	spawn(fun() -> {flood_pong, PongNode} ! {{flood_ping, node()}, Msg} end),
+	send(PongNode, Msg, Num - 1).
 
 ping_loop(Num, Start, 0) ->
-	T = timer:now_diff(now(), Start),
+	T = timer:now_diff(erlang:timestamp(), Start),
 	io:format("RECEIVED ALL ~p in ~p ms [~p/min]~n",[Num, T, (Num*60000000/T)]);
 ping_loop(Num, Start, Count) ->
-	receive 
+	receive
 		{pong, _PingBack} ->
 			ping_loop(Num, Start, Count-1);
 		_Received ->
@@ -48,4 +52,3 @@ ping_loop(Num, Start, Count) ->
 	after 10000 ->
 		io:format("ping timeout, missing ~p pong, shutdown~n",[Count])
 	end.
-

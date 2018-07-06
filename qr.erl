@@ -32,7 +32,7 @@ start_link() ->
 % Description: Manually stops the server.
 stop() ->
 	gen_server:cast(?SERVER, stop).
-	
+
 % Function() -> void()
 % Description: Sends a message via the queuing mechanism, if necessary
 send(Recipient, Message) ->
@@ -102,7 +102,7 @@ handle_cast({{queue, DestNode}, {ToPid, Message}}, Queue) ->
 	case lists:keysearch(DestNode, 1, Queue) of
 		false ->
 			% add node
-			NewQueue = [{DestNode, {now(), [Msg]}}|Queue];
+			NewQueue = [{DestNode, {erlang:timestamp(), [Msg]}}|Queue];
 		{value, {DestNode, {CreationTime, MsgList}}} ->
 			% check if queue is long enough
 			case length(MsgList) >= ?QUEUELENGTH of
@@ -139,7 +139,7 @@ handle_info(timeout, Queue) ->
 	PurgedQueue = purge_queue(Queue),
 	% return
 	{noreply, PurgedQueue};
-	
+
 handle_info({queue_route, MsgList}, State) ->
 	RouteFun = fun({route, ToPid, Message}) ->
 		% local send to node
@@ -148,7 +148,7 @@ handle_info({queue_route, MsgList}, State) ->
 	lists:foreach(RouteFun, MsgList),
 	% return
 	{noreply, State, ?QUEUETIMEOUT div 1000};
-	
+
 % handle_info generic fallback (ignore)
 handle_info(_Info, State) ->
     {noreply, State, ?QUEUETIMEOUT div 1000}.
@@ -181,7 +181,7 @@ code_change(_OldVsn, State, _Extra) ->
 purge_queue_selective(Queue) ->
 	% check timeout, send and remove element if needed
 	FilterFun = fun({DestNode, {CreationTime, MsgList}}) ->
-		case timer:now_diff(now(), CreationTime) > ?QUEUETIMEOUT of
+		case timer:now_diff(erlang:timestamp(), CreationTime) > ?QUEUETIMEOUT of
 			true ->
 				% timeout for a node, send routing message
 				{qr, DestNode} ! {queue_route, MsgList},
